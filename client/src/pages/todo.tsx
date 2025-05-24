@@ -311,55 +311,147 @@ export default function TodoPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <CheckSquare className="text-white" size={16} />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">TaskFlow</h1>
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50" 
+            onClick={() => setIsSidebarOpen(false)}
+          />
+          <div className="relative w-80 h-full bg-white shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">Filters & Categories</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsSidebarOpen(false)}
+              >
+                <X size={16} />
+              </Button>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              {/* Search Bar */}
-              <div className="relative hidden sm:block">
-                <Input
-                  type="text"
-                  placeholder="Search tasks..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-64 pl-10"
-                />
-                <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-              </div>
-              
-              {/* View Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className="px-3 py-1"
-                >
-                  <List size={16} className="mr-1" /> List
-                </Button>
-                <Button
-                  variant={viewMode === "grid" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  className="px-3 py-1"
-                >
-                  <Grid3x3 size={16} className="mr-1" /> Grid
-                </Button>
-              </div>
-              
-
+            <div className="p-4">
+              <Sidebar
+                tasks={tasks}
+                categories={categories}
+                currentFilter={currentFilter}
+                onFilterChange={(filter) => {
+                  setCurrentFilter(filter);
+                  setIsSidebarOpen(false);
+                }}
+                onAddCategory={handleAddCategory}
+                onDeleteCategory={handleDeleteCategory}
+                onExportData={handleExportData}
+                onImportData={handleImportData}
+                onClearCompleted={handleClearCompleted}
+              />
             </div>
           </div>
         </div>
-      </header>
+      )}
+
+      <div className="min-h-screen bg-gray-50">
+        {/* Mobile Header */}
+        <div className="lg:hidden bg-white shadow-sm border-b">
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-xl font-semibold text-gray-900">Tasks</h1>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsSidebarOpen(true)}
+                >
+                  <Menu size={16} className="mr-1" />
+                  Filter
+                </Button>
+                <Button onClick={() => setIsTaskModalOpen(true)} size="sm">
+                  <Plus size={16} />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Search tasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="created">Date Created</SelectItem>
+                    <SelectItem value="dueDate">Due Date</SelectItem>
+                    <SelectItem value="priority">Priority</SelectItem>
+                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <p className="text-sm text-gray-500">
+                  {filteredAndSortedTasks.length} tasks
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <header className="hidden lg:block bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <CheckSquare className="text-white" size={16} />
+                </div>
+                <h1 className="text-xl font-bold text-gray-900">TaskFlow</h1>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-64 pl-10"
+                  />
+                  <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                </div>
+                
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <Button
+                    variant={viewMode === "list" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className="px-3 py-1"
+                  >
+                    <List size={16} className="mr-1" /> List
+                  </Button>
+                  <Button
+                    variant={viewMode === "grid" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                    className="px-3 py-1"
+                  >
+                    <Grid3x3 size={16} className="mr-1" /> Grid
+                  </Button>
+                </div>
+                
+                <Button onClick={() => setIsTaskModalOpen(true)} size="sm">
+                  <Plus size={16} className="mr-2" />
+                  Add Task
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
