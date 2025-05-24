@@ -3,7 +3,7 @@ import { useLocalStorage } from "./use-local-storage";
 import type { Task, InsertTask, Category, InsertCategory } from "@shared/schema";
 
 // Generate unique IDs
-const generateId = () => Date.now() + Math.random();
+const generateId = () => Math.floor(Date.now() + Math.random() * 1000);
 
 // Default categories
 const defaultCategories: Category[] = [
