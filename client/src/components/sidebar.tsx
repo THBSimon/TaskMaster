@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Download, Upload, Trash2, CheckSquare, Clock, CheckCircle } from "lucide-react";
+import { Plus, Download, Upload, Trash2, CheckSquare, Clock, CheckCircle, X } from "lucide-react";
 import type { Task, Category } from "@shared/schema";
 import { getTaskStats } from "@/lib/task-utils";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ interface SidebarProps {
   currentFilter: { status?: string; category?: string };
   onFilterChange: (filter: { status?: string; category?: string }) => void;
   onAddCategory: () => void;
+  onDeleteCategory: (categoryId: number) => void;
   onExportData: () => void;
   onImportData: () => void;
   onClearCompleted: () => void;
@@ -23,6 +24,7 @@ export function Sidebar({
   currentFilter,
   onFilterChange,
   onAddCategory,
+  onDeleteCategory,
   onExportData,
   onImportData,
   onClearCompleted,
@@ -117,29 +119,38 @@ export function Sidebar({
             const isActive = currentFilter.category === category.name;
             
             return (
-              <Button
-                key={category.id}
-                variant="ghost"
-                className={cn(
-                  "w-full justify-between text-sm",
-                  isActive && "bg-gray-100"
-                )}
-                onClick={() => onFilterChange({ 
-                  category: isActive ? undefined : category.name,
-                  status: currentFilter.status
-                })}
-              >
-                <span className="flex items-center">
-                  <div 
-                    className="w-2 h-2 rounded-full mr-2"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  {category.name}
-                </span>
-                <Badge variant="outline" className="text-xs">
-                  {category.count}
-                </Badge>
-              </Button>
+              <div key={category.id} className="flex items-center group">
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "flex-1 justify-between text-sm",
+                    isActive && "bg-gray-100"
+                  )}
+                  onClick={() => onFilterChange({ 
+                    category: isActive ? undefined : category.name,
+                    status: currentFilter.status
+                  })}
+                >
+                  <span className="flex items-center">
+                    <div 
+                      className="w-2 h-2 rounded-full mr-2"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    {category.name}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {category.count}
+                  </Badge>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDeleteCategory(category.id)}
+                  className="p-1 h-auto text-gray-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                >
+                  <X size={12} />
+                </Button>
+              </div>
             );
           })}
         </div>

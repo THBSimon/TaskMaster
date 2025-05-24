@@ -29,8 +29,7 @@ export default function TodoPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
-  const [bulkMode, setBulkMode] = useState(false);
-  const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
+
 
   // Queries and mutations
   const { data: tasks = [], isLoading: tasksLoading } = useTasks();
@@ -157,10 +156,15 @@ export default function TodoPage() {
       try {
         const data = JSON.parse(e.target?.result as string);
         if (data.tasks && Array.isArray(data.tasks) && data.categories && Array.isArray(data.categories)) {
-          // Import categories first
-          const categoryPromises = data.categories.map((cat: any) => 
+          // Import only new categories (ones that don't already exist)
+          const existingCategoryNames = categories.map(c => c.name.toLowerCase());
+          const newCategories = data.categories.filter((cat: any) => 
+            !existingCategoryNames.includes(cat.name.toLowerCase())
+          );
+          
+          const categoryPromises = newCategories.map((cat: any) => 
             createCategoryMutation.mutateAsync({ name: cat.name, color: cat.color }).catch(() => {
-              // Category might already exist, continue
+              // Skip if creation fails
             })
           );
           
@@ -239,6 +243,40 @@ export default function TodoPage() {
         });
       },
     });
+  };
+
+  const handleDeleteCategory = (categoryId: number) => {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return;
+
+    // Check if category is being used by tasks
+    const tasksUsingCategory = tasks.filter(t => t.category === category.name);
+    if (tasksUsingCategory.length > 0) {
+      toast({
+        title: "Cannot delete category",
+        description: `"${category.name}" is being used by ${tasksUsingCategory.length} task(s). Please reassign these tasks first.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Use the API directly since we don't have a delete category mutation hook
+    fetch(`/api/categories/${categoryId}`, { method: 'DELETE' })
+      .then(() => {
+        toast({
+          title: "Category deleted",
+          description: `Category "${category.name}" has been deleted.`,
+        });
+        // Refresh categories
+        window.location.reload();
+      })
+      .catch(() => {
+        toast({
+          title: "Error",
+          description: "Failed to delete category.",
+          variant: "destructive",
+        });
+      });
   };
 
   if (tasksLoading || categoriesLoading) {
@@ -324,6 +362,7 @@ export default function TodoPage() {
               currentFilter={currentFilter}
               onFilterChange={setCurrentFilter}
               onAddCategory={handleAddCategory}
+              onDeleteCategory={handleDeleteCategory}
               onExportData={handleExportData}
               onImportData={handleImportData}
               onClearCompleted={handleClearCompleted}
@@ -359,22 +398,12 @@ export default function TodoPage() {
                       <SelectItem value="alphabetical">Sort A-Z</SelectItem>
                     </SelectContent>
                   </Select>
-
-                  {/* Bulk Actions */}
-                  <Button
-                    variant="outline"
-                    onClick={() => setBulkMode(!bulkMode)}
-                    className="text-sm"
-                  >
-                    <CheckSquare size={16} className="mr-2" />
-                    Select
-                  </Button>
                 </div>
               </div>
             </div>
 
             {/* Task List */}
-            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
+            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-3"}>
               {filteredAndSortedTasks.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
                   <div className="text-gray-400 mb-2">
