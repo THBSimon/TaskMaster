@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, List, Grid3x3, Settings, CheckSquare } from "lucide-react";
+import { Plus, Search, List, Grid3x3, Settings, CheckSquare, Menu, X } from "lucide-react";
 import { TaskCard } from "@/components/task-card";
 import { Sidebar } from "@/components/sidebar";
 import { TaskFormModal } from "@/components/task-form-modal";
@@ -34,6 +34,7 @@ export default function TodoPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<any>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 
   // Local storage hooks
