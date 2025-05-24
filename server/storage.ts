@@ -64,8 +64,13 @@ export class MemStorage implements IStorage {
     const id = this.currentTaskId++;
     const now = new Date().toISOString();
     const task: Task = {
-      ...insertTask,
       id,
+      title: insertTask.title,
+      description: insertTask.description || null,
+      category: insertTask.category,
+      priority: insertTask.priority || "medium",
+      status: insertTask.status || "active",
+      dueDate: insertTask.dueDate || null,
       createdAt: now,
       completedAt: null,
       order: this.tasks.size,
@@ -119,8 +124,9 @@ export class MemStorage implements IStorage {
   async createCategory(insertCategory: InsertCategory): Promise<Category> {
     const id = this.currentCategoryId++;
     const category: Category = {
-      ...insertCategory,
       id,
+      name: insertCategory.name,
+      color: insertCategory.color || "#1976D2",
       count: 0,
     };
     this.categories.set(id, category);

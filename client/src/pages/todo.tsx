@@ -23,7 +23,7 @@ export default function TodoPage() {
   const [searchQuery, setSearchQuery] = useLocalStorage("todo-search", "");
   const [sortBy, setSortBy] = useLocalStorage("todo-sort", "created");
   const [viewMode, setViewMode] = useLocalStorage("todo-view", "list");
-  const [currentFilter, setCurrentFilter] = useLocalStorage("todo-filter", { status: undefined, category: undefined });
+  const [currentFilter, setCurrentFilter] = useLocalStorage<{ status?: string; category?: string }>("todo-filter", {});
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
