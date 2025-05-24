@@ -85,7 +85,10 @@ export function Sidebar({
                   "w-full justify-between text-sm",
                   isActive && "bg-blue-600 text-white"
                 )}
-                onClick={() => onFilterChange({ status: filter.key === "all" ? undefined : filter.key })}
+                onClick={() => onFilterChange({ 
+                  status: filter.key === "all" ? undefined : filter.key,
+                  category: currentFilter.category 
+                })}
               >
                 <span className="flex items-center">
                   <Icon size={14} className="mr-2" />
@@ -122,7 +125,8 @@ export function Sidebar({
                   isActive && "bg-gray-100"
                 )}
                 onClick={() => onFilterChange({ 
-                  category: isActive ? undefined : category.name 
+                  category: isActive ? undefined : category.name,
+                  status: currentFilter.status
                 })}
               >
                 <span className="flex items-center">

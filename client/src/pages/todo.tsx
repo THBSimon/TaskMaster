@@ -7,6 +7,7 @@ import { TaskCard } from "@/components/task-card";
 import { Sidebar } from "@/components/sidebar";
 import { TaskFormModal } from "@/components/task-form-modal";
 import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
+import { AddCategoryModal } from "@/components/add-category-modal";
 import { useTasks, useCategories, useCreateTask, useUpdateTask, useDeleteTask, useCreateCategory } from "@/hooks/use-tasks";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { filterTasks, sortTasks, exportTasksAsJSON, downloadFile } from "@/lib/task-utils";
@@ -25,6 +26,7 @@ export default function TodoPage() {
   const [currentFilter, setCurrentFilter] = useLocalStorage("todo-filter", { status: undefined, category: undefined });
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
@@ -151,14 +153,38 @@ export default function TodoPage() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
-        if (data.tasks && Array.isArray(data.tasks)) {
-          // Here you would implement the import logic
+        if (data.tasks && Array.isArray(data.tasks) && data.categories && Array.isArray(data.categories)) {
+          // Import categories first
+          const categoryPromises = data.categories.map((cat: any) => 
+            createCategoryMutation.mutateAsync({ name: cat.name, color: cat.color }).catch(() => {
+              // Category might already exist, continue
+            })
+          );
+          
+          await Promise.allSettled(categoryPromises);
+
+          // Then import tasks
+          const taskPromises = data.tasks.map((task: any) => {
+            const importTask = {
+              title: task.title,
+              description: task.description || "",
+              category: task.category,
+              priority: task.priority || "medium",
+              status: "active", // Import all as active
+              dueDate: task.dueDate || null,
+            };
+            return createTaskMutation.mutateAsync(importTask);
+          });
+
+          const results = await Promise.allSettled(taskPromises);
+          const successful = results.filter(r => r.status === "fulfilled").length;
+          
           toast({
             title: "Import successful",
-            description: `Imported ${data.tasks.length} tasks.`,
+            description: `Imported ${successful} out of ${data.tasks.length} tasks.`,
           });
         } else {
           throw new Error("Invalid file format");
@@ -194,17 +220,15 @@ export default function TodoPage() {
   };
 
   const handleAddCategory = () => {
-    const name = prompt("Enter category name:");
-    if (!name || !name.trim()) return;
+    setIsCategoryModalOpen(true);
+  };
 
-    const colors = ["#1976D2", "#4CAF50", "#FF9800", "#9C27B0", "#F44336", "#00BCD4"];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-
-    createCategoryMutation.mutate({ name: name.trim(), color }, {
+  const handleCreateCategory = (data: { name: string; color: string }) => {
+    createCategoryMutation.mutate(data, {
       onSuccess: () => {
         toast({
           title: "Category created",
-          description: `Category "${name}" has been created.`,
+          description: `Category "${data.name}" has been created.`,
         });
       },
       onError: () => {
@@ -283,10 +307,7 @@ export default function TodoPage() {
                 </Button>
               </div>
               
-              {/* Settings */}
-              <Button variant="ghost" size="sm">
-                <Settings size={16} />
-              </Button>
+
             </div>
           </div>
         </div>
@@ -353,7 +374,7 @@ export default function TodoPage() {
             </div>
 
             {/* Task List */}
-            <div className="space-y-3">
+            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
               {filteredAndSortedTasks.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
                   <div className="text-gray-400 mb-2">
@@ -424,6 +445,12 @@ export default function TodoPage() {
         }}
         onConfirm={handleDeleteTask}
         task={deletingTask}
+      />
+
+      <AddCategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onSubmit={handleCreateCategory}
       />
 
       {/* Hidden file input for import */}
