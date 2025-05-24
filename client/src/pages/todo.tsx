@@ -9,7 +9,7 @@ import { TaskFormModal } from "@/components/task-form-modal";
 import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
 import { AddCategoryModal } from "@/components/add-category-modal";
 import { DeleteCategoryModal } from "@/components/delete-category-modal";
-import { useTasks, useCategories, useCreateTask, useUpdateTask, useDeleteTask, useCreateCategory } from "@/hooks/use-tasks";
+import { useTasks, useCategories, useCreateTask, useUpdateTask, useDeleteTask, useCreateCategory, useDeleteCategory } from "@/hooks/use-tasks";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { filterTasks, sortTasks, exportTasksAsJSON, downloadFile } from "@/lib/task-utils";
 import type { Task, InsertTask } from "@shared/schema";
@@ -41,6 +41,7 @@ export default function TodoPage() {
   const updateTaskMutation = useUpdateTask();
   const deleteTaskMutation = useDeleteTask();
   const createCategoryMutation = useCreateCategory();
+  const deleteCategoryMutation = useDeleteCategory();
 
   // Filtered and sorted tasks
   const filteredAndSortedTasks = useMemo(() => {
@@ -271,25 +272,23 @@ export default function TodoPage() {
   const handleConfirmDeleteCategory = () => {
     if (!deletingCategory) return;
 
-    // Use the API directly since we don't have a delete category mutation hook
-    fetch(`/api/categories/${deletingCategory.id}`, { method: 'DELETE' })
-      .then(() => {
+    deleteCategoryMutation.mutate(deletingCategory.id, {
+      onSuccess: () => {
         toast({
           title: "Category deleted",
           description: `Category "${deletingCategory.name}" has been deleted.`,
         });
         setIsDeleteCategoryModalOpen(false);
         setDeletingCategory(null);
-        // Refresh categories
-        window.location.reload();
-      })
-      .catch(() => {
+      },
+      onError: () => {
         toast({
           title: "Error",
           description: "Failed to delete category.",
           variant: "destructive",
         });
-      });
+      },
+    });
   };
 
   if (tasksLoading || categoriesLoading) {
@@ -498,11 +497,14 @@ export default function TodoPage() {
       <DeleteCategoryModal
         isOpen={isDeleteCategoryModalOpen}
         onClose={() => {
-          setIsDeleteCategoryModalOpen(false);
-          setDeletingCategory(null);
+          if (!deleteCategoryMutation.isPending) {
+            setIsDeleteCategoryModalOpen(false);
+            setDeletingCategory(null);
+          }
         }}
         onConfirm={handleConfirmDeleteCategory}
         category={deletingCategory}
+        isLoading={deleteCategoryMutation.isPending}
       />
 
       {/* Hidden file input for import */}

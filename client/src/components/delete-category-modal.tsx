@@ -8,9 +8,10 @@ interface DeleteCategoryModalProps {
   onClose: () => void;
   onConfirm: () => void;
   category: Category | null;
+  isLoading?: boolean;
 }
 
-export function DeleteCategoryModal({ isOpen, onClose, onConfirm, category }: DeleteCategoryModalProps) {
+export function DeleteCategoryModal({ isOpen, onClose, onConfirm, category, isLoading }: DeleteCategoryModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-sm">
@@ -33,11 +34,11 @@ export function DeleteCategoryModal({ isOpen, onClose, onConfirm, category }: De
         </p>
         
         <div className="flex justify-end space-x-3">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={onConfirm}>
-            Delete Category
+          <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
+            {isLoading ? "Deleting..." : "Delete Category"}
           </Button>
         </div>
       </DialogContent>
