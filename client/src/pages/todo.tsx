@@ -213,8 +213,8 @@ export default function TodoPage() {
             className="absolute inset-0 bg-black bg-opacity-50" 
             onClick={() => setIsSidebarOpen(false)}
           />
-          <div className="relative w-80 h-full bg-white shadow-xl">
-            <div className="flex items-center justify-between p-4 border-b">
+          <div className="relative w-80 h-full bg-white shadow-xl flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
               <h2 className="text-lg font-semibold">Filters & Categories</h2>
               <Button
                 variant="ghost"
@@ -224,7 +224,7 @@ export default function TodoPage() {
                 <X size={16} />
               </Button>
             </div>
-            <div className="p-4">
+            <div className="flex-1 overflow-y-auto p-4">
               <Sidebar
                 tasks={tasks}
                 categories={categories}
