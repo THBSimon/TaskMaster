@@ -10,6 +10,8 @@ import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal"
 import { AddCategoryModal } from "@/components/add-category-modal";
 import { DeleteCategoryModal } from "@/components/delete-category-modal";
 import { useLocalTasks } from "@/hooks/use-local-tasks";
+// Remove server-side imports - we're going fully local
+// import { useTasks, useCategories, useCreateTask, useUpdateTask, useDeleteTask, useCreateCategory, useDeleteCategory } from "@/hooks/use-tasks";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { filterTasks, sortTasks, exportTasksAsJSON, downloadFile } from "@/lib/task-utils";
 import type { Task, InsertTask } from "@shared/schema";
