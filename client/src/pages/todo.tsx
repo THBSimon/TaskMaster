@@ -9,7 +9,7 @@ import { TaskFormModal } from "@/components/task-form-modal";
 import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
 import { AddCategoryModal } from "@/components/add-category-modal";
 import { DeleteCategoryModal } from "@/components/delete-category-modal";
-import { useTasks, useCategories, useCreateTask, useUpdateTask, useDeleteTask, useCreateCategory, useDeleteCategory } from "@/hooks/use-tasks";
+import { useLocalTasks } from "@/hooks/use-local-tasks";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { filterTasks, sortTasks, exportTasksAsJSON, downloadFile } from "@/lib/task-utils";
 import type { Task, InsertTask } from "@shared/schema";
@@ -34,14 +34,17 @@ export default function TodoPage() {
   const [deletingCategory, setDeletingCategory] = useState<any>(null);
 
 
-  // Queries and mutations
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks();
-  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
-  const createTaskMutation = useCreateTask();
-  const updateTaskMutation = useUpdateTask();
-  const deleteTaskMutation = useDeleteTask();
-  const createCategoryMutation = useCreateCategory();
-  const deleteCategoryMutation = useDeleteCategory();
+  // Local storage hooks
+  const {
+    tasks,
+    categories,
+    isLoading,
+    createTask,
+    updateTask,
+    deleteTask,
+    createCategory,
+    deleteCategory,
+  } = useLocalTasks();
 
   // Filtered and sorted tasks
   const filteredAndSortedTasks = useMemo(() => {
@@ -54,79 +57,75 @@ export default function TodoPage() {
   }, [tasks, currentFilter, searchQuery, sortBy]);
 
   // Event handlers
-  const handleCreateTask = (data: InsertTask) => {
-    createTaskMutation.mutate(data, {
-      onSuccess: () => {
-        toast({
-          title: "Task created",
-          description: "Your task has been created successfully.",
-        });
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to create task. Please try again.",
-          variant: "destructive",
-        });
-      },
-    });
+  const handleCreateTask = async (data: InsertTask) => {
+    try {
+      await createTask(data);
+      toast({
+        title: "Task created",
+        description: "Your task has been created successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create task. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleUpdateTask = (data: InsertTask) => {
+  const handleUpdateTask = async (data: InsertTask) => {
     if (!editingTask) return;
     
-    updateTaskMutation.mutate({ id: editingTask.id, updates: data }, {
-      onSuccess: () => {
-        toast({
-          title: "Task updated",
-          description: "Your task has been updated successfully.",
-        });
-        setEditingTask(null);
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to update task. Please try again.",
-          variant: "destructive",
-        });
-      },
-    });
+    try {
+      await updateTask(editingTask.id, data);
+      toast({
+        title: "Task updated",
+        description: "Your task has been updated successfully.",
+      });
+      setEditingTask(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update task. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleToggleComplete = (id: number, completed: boolean) => {
-    updateTaskMutation.mutate({ 
-      id, 
-      updates: { status: completed ? "completed" : "active" } 
-    }, {
-      onSuccess: () => {
-        toast({
-          title: completed ? "Task completed" : "Task reactivated",
-          description: completed ? "Great job!" : "Task marked as active.",
-        });
-      },
-    });
+  const handleToggleComplete = async (id: number, completed: boolean) => {
+    try {
+      await updateTask(id, { status: completed ? "completed" : "active" });
+      toast({
+        title: completed ? "Task completed" : "Task reactivated",
+        description: completed ? "Great job!" : "Task marked as active.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update task status.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteTask = () => {
+  const handleDeleteTask = async () => {
     if (!deletingTask) return;
     
-    deleteTaskMutation.mutate(deletingTask.id, {
-      onSuccess: () => {
-        toast({
-          title: "Task deleted",
-          description: "Your task has been deleted successfully.",
-        });
-        setDeletingTask(null);
-        setIsDeleteModalOpen(false);
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to delete task. Please try again.",
-          variant: "destructive",
-        });
-      },
-    });
+    try {
+      await deleteTask(deletingTask.id);
+      toast({
+        title: "Task deleted",
+        description: "Your task has been deleted successfully.",
+      });
+      setDeletingTask(null);
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete task. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportData = () => {
@@ -167,7 +166,7 @@ export default function TodoPage() {
           );
           
           const categoryPromises = newCategories.map((cat: any) => 
-            createCategoryMutation.mutateAsync({ name: cat.name, color: cat.color }).catch(() => {
+            createCategory({ name: cat.name, color: cat.color }).catch(() => {
               // Skip if creation fails
             })
           );
@@ -184,7 +183,7 @@ export default function TodoPage() {
               status: "active", // Import all as active
               dueDate: task.dueDate || null,
             };
-            return createTaskMutation.mutateAsync(importTask);
+            return createTask(importTask);
           });
 
           const results = await Promise.allSettled(taskPromises);
@@ -209,44 +208,42 @@ export default function TodoPage() {
     event.target.value = "";
   };
 
-  const handleClearCompleted = () => {
+  const handleClearCompleted = async () => {
     const completedTasks = tasks.filter(t => t.status === "completed");
-    Promise.all(completedTasks.map(t => deleteTaskMutation.mutateAsync(t.id)))
-      .then(() => {
-        toast({
-          title: "Completed tasks cleared",
-          description: `Removed ${completedTasks.length} completed tasks.`,
-        });
-      })
-      .catch(() => {
-        toast({
-          title: "Error",
-          description: "Failed to clear completed tasks.",
-          variant: "destructive",
-        });
+    
+    try {
+      await Promise.all(completedTasks.map(t => deleteTask(t.id)));
+      toast({
+        title: "Completed tasks cleared",
+        description: `Removed ${completedTasks.length} completed tasks.`,
       });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to clear completed tasks.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddCategory = () => {
     setIsCategoryModalOpen(true);
   };
 
-  const handleCreateCategory = (data: { name: string; color: string }) => {
-    createCategoryMutation.mutate(data, {
-      onSuccess: () => {
-        toast({
-          title: "Category created",
-          description: `Category "${data.name}" has been created.`,
-        });
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to create category. It may already exist.",
-          variant: "destructive",
-        });
-      },
-    });
+  const handleCreateCategory = async (data: { name: string; color: string }) => {
+    try {
+      await createCategory(data);
+      toast({
+        title: "Category created",
+        description: `Category "${data.name}" has been created.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create category. It may already exist.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteCategory = (categoryId: number) => {
@@ -269,29 +266,27 @@ export default function TodoPage() {
     setIsDeleteCategoryModalOpen(true);
   };
 
-  const handleConfirmDeleteCategory = () => {
+  const handleConfirmDeleteCategory = async () => {
     if (!deletingCategory) return;
 
-    deleteCategoryMutation.mutate(deletingCategory.id, {
-      onSuccess: () => {
-        toast({
-          title: "Category deleted",
-          description: `Category "${deletingCategory.name}" has been deleted.`,
-        });
-        setIsDeleteCategoryModalOpen(false);
-        setDeletingCategory(null);
-      },
-      onError: () => {
-        toast({
-          title: "Error",
-          description: "Failed to delete category.",
-          variant: "destructive",
-        });
-      },
-    });
+    try {
+      await deleteCategory(deletingCategory.id);
+      toast({
+        title: "Category deleted",
+        description: `Category "${deletingCategory.name}" has been deleted.`,
+      });
+      setIsDeleteCategoryModalOpen(false);
+      setDeletingCategory(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete category.",
+        variant: "destructive",
+      });
+    }
   };
 
-  if (tasksLoading || categoriesLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -497,14 +492,14 @@ export default function TodoPage() {
       <DeleteCategoryModal
         isOpen={isDeleteCategoryModalOpen}
         onClose={() => {
-          if (!deleteCategoryMutation.isPending) {
+          if (!isLoading) {
             setIsDeleteCategoryModalOpen(false);
             setDeletingCategory(null);
           }
         }}
         onConfirm={handleConfirmDeleteCategory}
         category={deletingCategory}
-        isLoading={deleteCategoryMutation.isPending}
+        isLoading={isLoading}
       />
 
       {/* Hidden file input for import */}
