@@ -10,8 +10,6 @@ import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal"
 import { AddCategoryModal } from "@/components/add-category-modal";
 import { DeleteCategoryModal } from "@/components/delete-category-modal";
 import { useLocalTasks } from "@/hooks/use-local-tasks";
-// Remove server-side imports - we're going fully local
-// import { useTasks, useCategories, useCreateTask, useUpdateTask, useDeleteTask, useCreateCategory, useDeleteCategory } from "@/hooks/use-tasks";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { filterTasks, sortTasks, exportTasksAsJSON, downloadFile } from "@/lib/task-utils";
 import type { Task, InsertTask } from "@shared/schema";
@@ -21,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function TodoPage() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  
   // State
   const [searchQuery, setSearchQuery] = useLocalStorage("todo-search", "");
   const [sortBy, setSortBy] = useLocalStorage("todo-sort", "created");
@@ -35,7 +33,6 @@ export default function TodoPage() {
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
 
   // Local storage hooks
   const {
@@ -52,9 +49,9 @@ export default function TodoPage() {
   // Filtered and sorted tasks
   const filteredAndSortedTasks = useMemo(() => {
     const filtered = filterTasks(tasks, {
+      search: searchQuery,
       status: currentFilter.status,
       category: currentFilter.category,
-      search: searchQuery,
     });
     return sortTasks(filtered, sortBy);
   }, [tasks, currentFilter, searchQuery, sortBy]);
@@ -131,108 +128,6 @@ export default function TodoPage() {
     }
   };
 
-  const handleExportData = () => {
-    try {
-      const jsonData = exportTasksAsJSON(tasks, categories);
-      const filename = `taskflow-backup-${new Date().toISOString().split('T')[0]}.json`;
-      downloadFile(jsonData, filename);
-      toast({
-        title: "Data exported",
-        description: "Your data has been exported successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Export failed",
-        description: "Failed to export data. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleImportData = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string);
-        if (data.tasks && Array.isArray(data.tasks) && data.categories && Array.isArray(data.categories)) {
-          // Import only new categories (ones that don't already exist)
-          const existingCategoryNames = categories.map(c => c.name.toLowerCase());
-          const newCategories = data.categories.filter((cat: any) => 
-            !existingCategoryNames.includes(cat.name.toLowerCase())
-          );
-          
-          const categoryPromises = newCategories.map((cat: any) => 
-            createCategory({ name: cat.name, color: cat.color }).catch(() => {
-              // Skip if creation fails
-            })
-          );
-          
-          await Promise.allSettled(categoryPromises);
-
-          // Then import tasks
-          const taskPromises = data.tasks.map((task: any) => {
-            const importTask = {
-              title: task.title,
-              description: task.description || "",
-              category: task.category,
-              priority: task.priority || "medium",
-              status: "active", // Import all as active
-              dueDate: task.dueDate || null,
-            };
-            return createTask(importTask);
-          });
-
-          const results = await Promise.allSettled(taskPromises);
-          const successful = results.filter(r => r.status === "fulfilled").length;
-          
-          toast({
-            title: "Import successful",
-            description: `Imported ${successful} out of ${data.tasks.length} tasks.`,
-          });
-        } else {
-          throw new Error("Invalid file format");
-        }
-      } catch (error) {
-        toast({
-          title: "Import failed",
-          description: "Invalid file format. Please check your file and try again.",
-          variant: "destructive",
-        });
-      }
-    };
-    reader.readAsText(file);
-    event.target.value = "";
-  };
-
-  const handleClearCompleted = async () => {
-    const completedTasks = tasks.filter(t => t.status === "completed");
-    
-    try {
-      await Promise.all(completedTasks.map(t => deleteTask(t.id)));
-      toast({
-        title: "Completed tasks cleared",
-        description: `Removed ${completedTasks.length} completed tasks.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to clear completed tasks.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAddCategory = () => {
-    setIsCategoryModalOpen(true);
-  };
-
   const handleCreateCategory = async (data: { name: string; color: string }) => {
     try {
       await createCategory(data);
@@ -253,7 +148,6 @@ export default function TodoPage() {
     const category = categories.find(c => c.id === categoryId);
     if (!category) return;
 
-    // Check if category is being used by tasks
     const tasksUsingCategory = tasks.filter(t => t.category === category.name);
     if (tasksUsingCategory.length > 0) {
       toast({
@@ -264,7 +158,6 @@ export default function TodoPage() {
       return;
     }
 
-    // Show confirmation modal
     setDeletingCategory(category);
     setIsDeleteCategoryModalOpen(true);
   };
@@ -294,8 +187,10 @@ export default function TodoPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1">
-              <Skeleton className="h-96 w-full" />
+            <div className="lg:col-span-1 space-y-4">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-40 w-full" />
+              <Skeleton className="h-24 w-full" />
             </div>
             <div className="lg:col-span-3 space-y-4">
               <Skeleton className="h-20 w-full" />
@@ -338,223 +233,269 @@ export default function TodoPage() {
                   setCurrentFilter(filter);
                   setIsSidebarOpen(false);
                 }}
-                onAddCategory={handleAddCategory}
+                onAddCategory={() => setIsCategoryModalOpen(true)}
                 onDeleteCategory={handleDeleteCategory}
-                onExportData={handleExportData}
-                onImportData={handleImportData}
-                onClearCompleted={handleClearCompleted}
+                onExportData={() => {
+                  const jsonData = exportTasksAsJSON(tasks, categories);
+                  downloadFile(jsonData, "tasks-backup.json");
+                }}
+                onImportData={() => fileInputRef.current?.click()}
+                onClearCompleted={async () => {
+                  const completedTasks = tasks.filter(t => t.status === "completed");
+                  try {
+                    await Promise.all(completedTasks.map(t => deleteTask(t.id)));
+                    toast({
+                      title: "Completed tasks cleared",
+                      description: `Removed ${completedTasks.length} completed tasks.`,
+                    });
+                  } catch (error) {
+                    toast({
+                      title: "Error",
+                      description: "Failed to clear completed tasks.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
               />
             </div>
           </div>
         </div>
       )}
 
-      <div className="min-h-screen bg-gray-50">
-        {/* Mobile Header */}
-        <div className="lg:hidden bg-white shadow-sm border-b">
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-xl font-semibold text-gray-900">Tasks</h1>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsSidebarOpen(true)}
-                >
-                  <Menu size={16} className="mr-1" />
-                  Filter
-                </Button>
-                <Button onClick={() => setIsTaskModalOpen(true)} size="sm">
-                  <Plus size={16} />
-                </Button>
-              </div>
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white shadow-sm border-b">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-xl font-semibold text-gray-900">Tasks</h1>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSidebarOpen(true)}
+              >
+                <Menu size={16} className="mr-1" />
+                Filter
+              </Button>
+              <Button onClick={() => setIsTaskModalOpen(true)} size="sm">
+                <Plus size={16} />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
             
-            <div className="space-y-3">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="Search tasks..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+            <div className="flex items-center justify-between">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created">Date Created</SelectItem>
+                  <SelectItem value="dueDate">Due Date</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                  <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                </SelectContent>
+              </Select>
               
-              <div className="flex items-center justify-between">
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="created">Date Created</SelectItem>
-                    <SelectItem value="dueDate">Due Date</SelectItem>
-                    <SelectItem value="priority">Priority</SelectItem>
-                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <p className="text-sm text-gray-500">
-                  {filteredAndSortedTasks.length} tasks
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Desktop Header */}
-        <header className="hidden lg:block bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <CheckSquare className="text-white" size={16} />
-                </div>
-                <h1 className="text-xl font-bold text-gray-900">TaskFlow</h1>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <Input
-                    type="text"
-                    placeholder="Search tasks..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-64 pl-10"
-                  />
-                  <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-                </div>
-                
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <Button
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className="px-3 py-1"
-                  >
-                    <List size={16} className="mr-1" /> List
-                  </Button>
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                    className="px-3 py-1"
-                  >
-                    <Grid3x3 size={16} className="mr-1" /> Grid
-                  </Button>
-                </div>
-                
-                <Button onClick={() => setIsTaskModalOpen(true)} size="sm">
-                  <Plus size={16} className="mr-2" />
-                  Add Task
-                </Button>
-              </div>
-            </div>
-          </div>
-        </header>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <Sidebar
-              tasks={tasks}
-              categories={categories}
-              currentFilter={currentFilter}
-              onFilterChange={setCurrentFilter}
-              onAddCategory={handleAddCategory}
-              onDeleteCategory={handleDeleteCategory}
-              onExportData={handleExportData}
-              onImportData={handleImportData}
-              onClearCompleted={handleClearCompleted}
-            />
-          </div>
-
-          {/* Main Content */}
-          <div className="lg:col-span-3">
-            {/* Toolbar */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center space-x-4">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {currentFilter.status === "completed" ? "Completed Tasks" :
-                     currentFilter.status === "active" ? "Active Tasks" :
-                     currentFilter.category ? `${currentFilter.category} Tasks` : "All Tasks"}
-                  </h2>
-                  <span className="text-sm text-gray-500">
-                    ({filteredAndSortedTasks.length} tasks)
-                  </span>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  {/* Sort Dropdown */}
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="created">Sort by Created</SelectItem>
-                      <SelectItem value="due">Sort by Due Date</SelectItem>
-                      <SelectItem value="priority">Sort by Priority</SelectItem>
-                      <SelectItem value="alphabetical">Sort A-Z</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Task List */}
-            <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-3"}>
-              {filteredAndSortedTasks.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-                  <div className="text-gray-400 mb-2">
-                    <CheckSquare size={48} className="mx-auto" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-                  <p className="text-gray-500 mb-4">
-                    {searchQuery ? "Try adjusting your search terms." : "Create your first task to get started."}
-                  </p>
-                  {!searchQuery && (
-                    <Button onClick={() => setIsTaskModalOpen(true)}>
-                      <Plus size={16} className="mr-2" />
-                      Create Task
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                filteredAndSortedTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    categories={categories}
-                    onToggleComplete={handleToggleComplete}
-                    onEdit={(task) => {
-                      setEditingTask(task);
-                      setIsTaskModalOpen(true);
-                    }}
-                    onDelete={(task) => {
-                      setDeletingTask(task);
-                      setIsDeleteModalOpen(true);
-                    }}
-                  />
-                ))
-              )}
+              <p className="text-sm text-gray-500">
+                {filteredAndSortedTasks.length} tasks
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Floating Action Button */}
-      <Button
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg hover:shadow-xl z-50"
-        onClick={() => {
-          setEditingTask(null);
-          setIsTaskModalOpen(true);
-        }}
-      >
-        <Plus size={20} />
-      </Button>
+      {/* Desktop Layout */}
+      <div className="hidden lg:block max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-4 gap-6">
+          {/* Desktop Sidebar */}
+          <div className="col-span-1">
+            <Sidebar
+              tasks={tasks}
+              categories={categories}
+              currentFilter={currentFilter}
+              onFilterChange={setCurrentFilter}
+              onAddCategory={() => setIsCategoryModalOpen(true)}
+              onDeleteCategory={handleDeleteCategory}
+              onExportData={() => {
+                const jsonData = exportTasksAsJSON(tasks, categories);
+                downloadFile(jsonData, "tasks-backup.json");
+              }}
+              onImportData={() => fileInputRef.current?.click()}
+              onClearCompleted={async () => {
+                const completedTasks = tasks.filter(t => t.status === "completed");
+                try {
+                  await Promise.all(completedTasks.map(t => deleteTask(t.id)));
+                  toast({
+                    title: "Completed tasks cleared",
+                    description: `Removed ${completedTasks.length} completed tasks.`,
+                  });
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: "Failed to clear completed tasks.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            />
+          </div>
+
+          {/* Desktop Main Content */}
+          <div className="col-span-3">
+            <div className="bg-white rounded-lg shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Task Manager</h1>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {filteredAndSortedTasks.length} tasks
+                    </p>
+                  </div>
+                  
+                  <Button onClick={() => setIsTaskModalOpen(true)} size="sm">
+                    <Plus size={16} className="mr-2" />
+                    Add Task
+                  </Button>
+                </div>
+                
+                <div className="flex gap-4">
+                  <div className="relative flex-1">
+                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <Input
+                      placeholder="Search tasks..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="created">Date Created</SelectItem>
+                      <SelectItem value="dueDate">Due Date</SelectItem>
+                      <SelectItem value="priority">Priority</SelectItem>
+                      <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex border rounded-md">
+                    <Button
+                      variant={viewMode === "list" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                      className="rounded-r-none border-r"
+                    >
+                      <List size={16} />
+                    </Button>
+                    <Button
+                      variant={viewMode === "grid" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("grid")}
+                      className="rounded-l-none"
+                    >
+                      <Grid3x3 size={16} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {filteredAndSortedTasks.length === 0 ? (
+                  <div className="text-center py-12">
+                    <CheckSquare size={48} className="mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+                    <p className="text-gray-500 mb-4">
+                      {searchQuery || currentFilter.status !== undefined || currentFilter.category
+                        ? "Try adjusting your search or filters"
+                        : "Create your first task to get started"}
+                    </p>
+                    <Button onClick={() => setIsTaskModalOpen(true)}>
+                      <Plus size={16} className="mr-2" />
+                      Add Task
+                    </Button>
+                  </div>
+                ) : (
+                  <div className={
+                    viewMode === "grid" 
+                      ? "grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4"
+                      : "space-y-3"
+                  }>
+                    {filteredAndSortedTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        categories={categories}
+                        onToggleComplete={handleToggleComplete}
+                        onEdit={(task) => {
+                          setEditingTask(task);
+                          setIsTaskModalOpen(true);
+                        }}
+                        onDelete={(task) => {
+                          setDeletingTask(task);
+                          setIsDeleteModalOpen(true);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Content */}
+      <div className="lg:hidden">
+        <div className="p-4">
+          {filteredAndSortedTasks.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-lg">
+              <CheckSquare size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+              <p className="text-gray-500 mb-4 text-sm">
+                {searchQuery || currentFilter.status !== undefined || currentFilter.category
+                  ? "Try adjusting your search or filters"
+                  : "Create your first task to get started"}
+              </p>
+              <Button onClick={() => setIsTaskModalOpen(true)}>
+                <Plus size={16} className="mr-2" />
+                Add Task
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredAndSortedTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  categories={categories}
+                  onToggleComplete={handleToggleComplete}
+                  onEdit={(task) => {
+                    setEditingTask(task);
+                    setIsTaskModalOpen(true);
+                  }}
+                  onDelete={(task) => {
+                    setDeletingTask(task);
+                    setIsDeleteModalOpen(true);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Modals */}
       <TaskFormModal
@@ -602,7 +543,59 @@ export default function TodoPage() {
         ref={fileInputRef}
         type="file"
         accept=".json"
-        onChange={handleFileImport}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            try {
+              const data = JSON.parse(e.target?.result as string);
+              if (data.tasks && Array.isArray(data.tasks) && data.categories && Array.isArray(data.categories)) {
+                const existingCategoryNames = categories.map(c => c.name.toLowerCase());
+                const newCategories = data.categories.filter((cat: any) => 
+                  !existingCategoryNames.includes(cat.name.toLowerCase())
+                );
+                
+                const categoryPromises = newCategories.map((cat: any) => 
+                  createCategory({ name: cat.name, color: cat.color }).catch(() => {})
+                );
+                
+                await Promise.allSettled(categoryPromises);
+
+                const taskPromises = data.tasks.map((task: any) => {
+                  const importTask = {
+                    title: task.title,
+                    description: task.description || "",
+                    category: task.category,
+                    priority: task.priority || "medium",
+                    status: "active",
+                    dueDate: task.dueDate || null,
+                  };
+                  return createTask(importTask);
+                });
+
+                const results = await Promise.allSettled(taskPromises);
+                const successful = results.filter(r => r.status === "fulfilled").length;
+                
+                toast({
+                  title: "Import successful",
+                  description: `Imported ${successful} out of ${data.tasks.length} tasks.`,
+                });
+              } else {
+                throw new Error("Invalid file format");
+              }
+            } catch (error) {
+              toast({
+                title: "Import failed",
+                description: "Invalid file format. Please check your file and try again.",
+                variant: "destructive",
+              });
+            }
+          };
+          reader.readAsText(file);
+          event.target.value = "";
+        }}
         className="hidden"
       />
     </div>
