@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, GripVertical, Calendar, AlertTriangle } from "lucide-react";
+import { Edit, Trash2, Calendar, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
 import type { Task, Category } from "@shared/schema";
 import { formatDueDate, isTaskOverdue, getPriorityColor, getPriorityLabel, getCategoryColor } from "@/lib/task-utils";
 import { cn } from "@/lib/utils";
@@ -16,10 +17,13 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, categories, onToggleComplete, onEdit, onDelete, isDragging }: TaskCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const isCompleted = task.status === "completed";
   const isOverdue = isTaskOverdue(task);
   const dueText = formatDueDate(task.dueDate);
   const categoryColor = getCategoryColor(task.category, categories);
+  
+  const hasLongDescription = task.description && task.description.length > 100;
 
   return (
     <div 
@@ -30,11 +34,7 @@ export function TaskCard({ task, categories, onToggleComplete, onEdit, onDelete,
         isDragging && "opacity-50"
       )}
     >
-      <div className="flex items-start space-x-4">
-        {/* Drag Handle */}
-        <div className="mt-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing">
-          <GripVertical size={16} />
-        </div>
+      <div className="flex items-start space-x-3">
         
         {/* Checkbox */}
         <Checkbox
@@ -62,12 +62,35 @@ export function TaskCard({ task, categories, onToggleComplete, onEdit, onDelete,
               </div>
               
               {task.description && (
-                <p className={cn(
-                  "text-sm mt-1 line-clamp-2",
-                  isCompleted ? "text-gray-400 line-through" : "text-gray-500"
-                )}>
-                  {task.description}
-                </p>
+                <div className="mt-1">
+                  <p className={cn(
+                    "text-sm",
+                    isCompleted ? "text-gray-400 line-through" : "text-gray-500",
+                    !isExpanded && hasLongDescription && "line-clamp-2"
+                  )}>
+                    {task.description}
+                  </p>
+                  {hasLongDescription && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsExpanded(!isExpanded)}
+                      className="p-0 h-auto text-xs text-blue-600 hover:text-blue-800 mt-1"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp size={12} className="mr-1" />
+                          Show less
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown size={12} className="mr-1" />
+                          Show more
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
             

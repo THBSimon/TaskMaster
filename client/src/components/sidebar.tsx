@@ -29,7 +29,12 @@ export function Sidebar({
   onImportData,
   onClearCompleted,
 }: SidebarProps) {
-  const stats = getTaskStats(tasks);
+  // Calculate stats based on current filter
+  const filteredTasks = currentFilter.category 
+    ? tasks.filter(task => task.category === currentFilter.category)
+    : tasks;
+  
+  const stats = getTaskStats(filteredTasks);
 
   const statusFilters = [
     { key: "all", label: "All Tasks", icon: CheckSquare, count: stats.total },

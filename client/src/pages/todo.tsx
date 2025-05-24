@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/sidebar";
 import { TaskFormModal } from "@/components/task-form-modal";
 import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
 import { AddCategoryModal } from "@/components/add-category-modal";
+import { DeleteCategoryModal } from "@/components/delete-category-modal";
 import { useTasks, useCategories, useCreateTask, useUpdateTask, useDeleteTask, useCreateCategory } from "@/hooks/use-tasks";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { filterTasks, sortTasks, exportTasksAsJSON, downloadFile } from "@/lib/task-utils";
@@ -27,8 +28,10 @@ export default function TodoPage() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isDeleteCategoryModalOpen, setIsDeleteCategoryModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<any>(null);
 
 
   // Queries and mutations
@@ -260,13 +263,23 @@ export default function TodoPage() {
       return;
     }
 
+    // Show confirmation modal
+    setDeletingCategory(category);
+    setIsDeleteCategoryModalOpen(true);
+  };
+
+  const handleConfirmDeleteCategory = () => {
+    if (!deletingCategory) return;
+
     // Use the API directly since we don't have a delete category mutation hook
-    fetch(`/api/categories/${categoryId}`, { method: 'DELETE' })
+    fetch(`/api/categories/${deletingCategory.id}`, { method: 'DELETE' })
       .then(() => {
         toast({
           title: "Category deleted",
-          description: `Category "${category.name}" has been deleted.`,
+          description: `Category "${deletingCategory.name}" has been deleted.`,
         });
+        setIsDeleteCategoryModalOpen(false);
+        setDeletingCategory(null);
         // Refresh categories
         window.location.reload();
       })
@@ -480,6 +493,16 @@ export default function TodoPage() {
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
         onSubmit={handleCreateCategory}
+      />
+
+      <DeleteCategoryModal
+        isOpen={isDeleteCategoryModalOpen}
+        onClose={() => {
+          setIsDeleteCategoryModalOpen(false);
+          setDeletingCategory(null);
+        }}
+        onConfirm={handleConfirmDeleteCategory}
+        category={deletingCategory}
       />
 
       {/* Hidden file input for import */}
